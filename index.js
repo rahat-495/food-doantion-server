@@ -48,8 +48,17 @@ async function run() {
     })
 
     app.get('/availbleFoods' , async (req , res) => {
+      const sort = req.query.sort ;
+      const search = req.query.search ;
+      
+      let options = {} ;
+      let query = {} ;
+
+      if(sort) options = { sort : {expiredDateTime : sort === 'asc' ? 1 : -1} }
+      if(search) query = {foodName : {$regex : search , $options : 'i'}}
       const filter = {status : 'available'} ;
-      const cursor = featuredFoodsCollection.find(filter) ;
+
+      const cursor = featuredFoodsCollection.find({...query , ...filter} , options) ;
       const result = await cursor.toArray() ;
       res.send(result) ;
     })
