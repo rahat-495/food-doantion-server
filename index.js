@@ -10,6 +10,8 @@ const port = process.env.PORT || 5555 ;
 app.use(cors({
   origin : [
     'http://localhost:5173' ,
+    'https://assignment-11-90835.web.app' ,
+    'https://assignment-11-90835.firebaseapp.com' ,
   ],
   credentials : true ,
 })) ;
