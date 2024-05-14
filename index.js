@@ -1,12 +1,20 @@
 
 const { MongoClient, ServerApiVersion, Db, ObjectId } = require('mongodb');
+const cookiePerser = require('cookie-parser');
+const jwt = require('jsonwebtoken') ;
 const express = require('express');
 const cors = require('cors');
 const app = express() ;
 const port = process.env.PORT || 5555 ;
 
-app.use(cors()) ;
+app.use(cors({
+  origin : [
+    'http://localhost:5173' ,
+  ],
+  credentials : true ,
+})) ;
 app.use(express.json()) ;
+app.use(cookiePerser()) ;
 require('dotenv').config() ;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w0yjihf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -19,6 +27,20 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+const verifyToken = async (req , res , next) => {
+  const token = req?.cookies?.token ;
+  if(!token){
+    return res.status(401).send({message : "UnAuthorized"}) ;
+  }
+  jwt.verify(token , process.env.ACCESS_SECRET_TOKEN , (error , decoded) => {
+    if(error){
+      return res.status(403).send({message : "invalid access"}) ;
+    }
+    req.user = decoded ;
+    next() ;
+  })
+}
 
 async function run() {
   try {
@@ -63,7 +85,12 @@ async function run() {
       res.send(result) ;
     })
 
-    app.get('/manageMyFoods/:email' , async (req , res) => {
+    app.get('/manageMyFoods/:email', verifyToken , async (req , res) => {
+      
+      if(req.params.email !== req.user.email){
+        return res.status(403).send({message : "invalid access || unAuthorized"}) ;
+      }
+      
       const email = req.params.email ;
       const filter = {"donator.donatorEmail" : email} ;
       const cursor = featuredFoodsCollection.find(filter) ;
@@ -71,7 +98,12 @@ async function run() {
       res.send(result) ;
     })
 
-    app.get('/myRequestedFoods/:email' , async (req , res) => {
+    app.get('/myRequestedFoods/:email', verifyToken , async (req , res) => {
+
+      if(req.params.email !== req.user.email){
+        return res.status(403).send({message : "invalid access || unAuthorized"}) ;
+      }
+      
       const email = req.params.email ;
       const filter = {email : email} ;
       const cursor = featuredFoodsCollection.find(filter) ;
@@ -83,6 +115,17 @@ async function run() {
       const postedItem = req.body ;
       const result = await featuredFoodsCollection.insertOne(postedItem) ;
       res.send(result) ;
+    })
+
+    app.post('/jwt' , async (req , res) => {
+      const user = req.body ;
+      const token = jwt.sign(user , process.env.ACCESS_SECRET_TOKEN , {expiresIn : '1h'}) ;
+
+      res.cookie('token' , token , {
+        httpOnly : true ,
+        secure : process.env.NODE_ENV === "production" ? true : false ,
+        sameSite : process.env.NODE_ENV === 'production' ? 'none' : 'strict' , 
+      }).send({success : true}) ;
     })
 
     app.patch('/foodsRequest/:id' , async (req , res) => {
