@@ -130,6 +130,22 @@ async function run() {
       }).send({success : true}) ;
     })
 
+    app.patch('/calcelRequest/:id' , async (req ,res) => {
+      const id = req.params.id ;
+      const {status , email} = req.body ;
+
+      const filter = {_id : new ObjectId(id)} ;
+      const updateDoc = {
+        $set : {
+          email ,
+          status ,
+        }
+      }
+
+      const result = await featuredFoodsCollection.updateOne(filter , updateDoc) ;
+      res.send(result) ;
+    })
+
     app.patch('/foodsRequest/:id' , async (req , res) => {
       const id = req.params.id ;
       const {additional , status , email , requestedDate} = req.body ;
